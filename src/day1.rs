@@ -53,4 +53,3 @@ pub mod tests {
         assert_eq!(calc_total_mass(&100756), 50346);
     }
 }
-
