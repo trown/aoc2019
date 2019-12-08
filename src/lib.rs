@@ -7,5 +7,6 @@ mod day1;
 // day 1 and 2 done without cargo-aoc, solutions in git history
 mod day3;
 mod day4;
+mod day5;
 
 aoc_lib! { year = 2019 }
