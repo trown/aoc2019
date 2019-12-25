@@ -1,7 +1,14 @@
 use crate::intcode::Program;
 
+use termion::async_stdin;
+use termion::raw::IntoRawMode;
+use termion::{color, cursor, style};
+
 use std::collections::HashMap;
-use std::fmt;
+//use std::fmt;
+use std::io::{stdout, Read, Write};
+use std::thread;
+use std::time;
 
 /// Parses each line to be an i64
 #[aoc_generator(day13)]
@@ -11,28 +18,7 @@ fn generator_input(input: &str) -> Vec<i64> {
         .map(|a| a.parse::<i64>().unwrap())
         .collect()
 }
-
 struct Game(HashMap<(i32, i32), i32>);
-
-impl fmt::Display for Game {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f)?;
-        for i in 0..25 {
-            for j in 0..40 {
-                match self.0.get(&(j, i)) {
-                    Some(1) => write!(f, " # ")?,
-                    Some(2) => write!(f, " O ")?,
-                    Some(3) => write!(f, "-_-")?,
-                    Some(4) => write!(f, " * ")?,
-                    Some(_) => write!(f, " . ")?,
-                    None => write!(f, " . ")?,
-                }
-            }
-            writeln!(f)?;
-        }
-        Ok(())
-    }
-}
 
 #[aoc(day13, part1)]
 fn part_one(input: &[i64]) -> usize {
@@ -43,12 +29,18 @@ fn part_one(input: &[i64]) -> usize {
         let square: Vec<i32> = program.output.drain(..3).map(|x| x as i32).collect();
         game.0.insert((square[0], square[1]), square[2]);
     }
-    println!("{}", game);
     game.0.values().filter(|x| *x == &2).count()
 }
 
 #[aoc(day13, part2)]
 fn part_two(input: &[i64]) -> i32 {
+    // Initialize 'em all.
+    let stdout = stdout();
+    let mut stdout = stdout.lock().into_raw_mode().unwrap();
+    let stdin = async_stdin();
+    //let stdin = stdin.lock();
+    let mut bytes = stdin.bytes();
+
     let mut free_game = input.to_vec();
     free_game[0] = 2;
     let mut moves = Vec::new();
@@ -59,7 +51,23 @@ fn part_two(input: &[i64]) -> i32 {
     let mut paddle_x = 0;
     let mut i = 0;
     let mut j = 0;
+    let mut initialized = false;
+    let mut sleep = 0;
+    let mut speed = 2;
+
+    write!(
+        stdout,
+        "{}{}{}{}{}AoC Arcade                  Score:      ",
+        termion::clear::All,
+        termion::cursor::Hide,
+        color::Bg(color::Black),
+        color::Fg(color::Red),
+        termion::cursor::Goto(20, 9)
+    );
+    stdout.flush().unwrap();
+
     loop {
+        stdout.flush().unwrap();
         i += 1;
         program.next(&mut moves);
         if program.output.len() > 2 {
@@ -73,17 +81,57 @@ fn part_two(input: &[i64]) -> i32 {
             match (x, y, tile) {
                 (-1, 0, tile) => {
                     score = tile;
+                    write!(
+                        stdout,
+                        "{}{}{}{}",
+                        color::Bg(color::Black),
+                        color::Fg(color::Red),
+                        termion::cursor::Goto(55, 9),
+                        score
+                    );
                 }
-                (x, _, 4) => {
+                (x, y, 4) => {
                     ball_x = x;
                     _block = game.0.insert((x, y), tile);
+                    write!(
+                        stdout,
+                        "{}{}{}*",
+                        style::Reset,
+                        color::Fg(color::Blue),
+                        cursor::Goto(x as u16 + 20, y as u16 + 10)
+                    )
+                    .unwrap();
+                    stdout.flush().unwrap();
                 }
-                (x, _, 3) => {
+                (x, y, 3) => {
                     paddle_x = x;
                     _block = game.0.insert((x, y), tile);
+                    write!(
+                        stdout,
+                        "{}{}{}_",
+                        style::Reset,
+                        color::Fg(color::Yellow),
+                        cursor::Goto(x as u16 + 20, y as u16 + 10)
+                    )
+                    .unwrap();
+                    stdout.flush().unwrap();
+                }
+                (x, y, 2) => {
+                    _block = game.0.insert((x, y), tile);
+                    write!(stdout, "{}O", cursor::Goto(x as u16 + 20, y as u16 + 10)).unwrap();
+                    stdout.flush().unwrap();
                 }
                 _ => {
                     _block = game.0.insert((x, y), tile);
+                    write!(
+                        stdout,
+                        "{}{}{}.",
+                        style::Reset,
+                        color::Fg(color::Green),
+                        cursor::Goto(x as u16 + 20, y as u16 + 10)
+                    )
+                    .unwrap();
+                    stdout.flush().unwrap();
                 }
             }
         }
@@ -100,6 +148,66 @@ fn part_two(input: &[i64]) -> i32 {
         if j > 100 {
             break;
         }
+        if i > 18000 && !initialized {
+            for y in 0..25 {
+                for x in 0..40 {
+                    match game.0.get(&(x, y)) {
+                        Some(1) => write!(
+                            stdout,
+                            "{}{}{}#",
+                            cursor::Goto(x as u16 + 20, y as u16 + 10),
+                            color::Bg(color::Red),
+                            color::Fg(color::Black)
+                        )
+                        .unwrap(),
+                        Some(2) => write!(stdout, "{}{}O", style::Reset, color::Fg(color::Magenta))
+                            .unwrap(),
+                        Some(3) => {
+                            write!(stdout, "{}{}_", style::Reset, color::Fg(color::Red)).unwrap()
+                        }
+                        Some(4) => {
+                            write!(stdout, "{}{}*", style::Reset, color::Fg(color::Yellow)).unwrap()
+                        }
+                        Some(_) => write!(
+                            stdout,
+                            "{}{}{}.",
+                            cursor::Goto(x as u16 + 20, y as u16 + 10),
+                            style::Reset,
+                            color::Fg(color::Green)
+                        )
+                        .unwrap(),
+                        None => write!(
+                            stdout,
+                            "{}{}{}.",
+                            cursor::Goto(x as u16 + 20, y as u16 + 10),
+                            style::Reset,
+                            color::Fg(color::Green)
+                        )
+                        .unwrap(),
+                    }
+                }
+            }
+            stdout.flush().unwrap();
+            initialized = true;
+        }
+        if i > 18000 && sleep > speed {
+            thread::sleep(time::Duration::from_millis(1));
+            sleep = 0;
+        } else {
+            sleep += 1;
+        }
+
+        //write!(stdout, "{}{}", termion::clear::All, game);
+        let b = bytes.next();
+        match b {
+            // Quit
+            Some(Ok(b'q')) => break,
+            Some(Ok(b' ')) => speed = speed * 10,
+            // Clear the screen
+            Some(Ok(b'c')) => write!(stdout, "{}", termion::clear::All).unwrap(),
+            _ => continue,
+        }
     }
+    write!(stdout, "{}{}", style::Reset, cursor::Goto(1, 45)).unwrap();
     score
 }

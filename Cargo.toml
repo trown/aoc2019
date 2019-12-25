@@ -10,4 +10,5 @@ edition = "2018"
 aoc-runner = "*"
 aoc-runner-derive = "*"
 permutohedron = "0.2.4"
+termion = "1.5.4"
 

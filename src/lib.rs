@@ -7,6 +7,7 @@ mod day1;
 // day 1 and 2 done without cargo-aoc, solutions in git history
 mod day11;
 mod day13;
+mod day15;
 mod day3;
 mod day4;
 mod day5;
