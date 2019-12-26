@@ -63,7 +63,8 @@ fn part_two(input: &[i64]) -> i32 {
         color::Bg(color::Black),
         color::Fg(color::Red),
         termion::cursor::Goto(20, 9)
-    );
+    )
+    .unwrap();
     stdout.flush().unwrap();
 
     loop {
@@ -88,7 +89,8 @@ fn part_two(input: &[i64]) -> i32 {
                         color::Fg(color::Red),
                         termion::cursor::Goto(55, 9),
                         score
-                    );
+                    )
+                    .unwrap();
                 }
                 (x, y, 4) => {
                     ball_x = x;
