@@ -113,6 +113,137 @@ fn part_one(input: &[Bug]) -> i32 {
     }
 }
 
+#[aoc(day24, part2)]
+fn part_two(input: &[Bug]) -> i32 {
+    let mut layer0 = input.to_vec();
+    layer0[12] = Bug::Dead;
+    let mut eris = vec![
+        vec![Bug::Dead; 25],
+        vec![Bug::Dead; 25],
+        layer0,
+        vec![Bug::Dead; 25],
+        vec![Bug::Dead; 25],
+    ];
+    for _ in 0..200 {
+        let mut new_eris = vec![vec![Bug::Dead; 25]; 3];
+        for i in 1..eris.len() - 1 {
+            new_eris.push(tick_layers(&eris[i - 1], &eris[i], &eris[i + 1]));
+        }
+        new_eris.push(vec![Bug::Dead; 25]);
+        new_eris.push(vec![Bug::Dead; 25]);
+        eris = new_eris;
+    }
+    eris.into_iter()
+        .flat_map(|p| p.into_iter().map(|b| b as i32))
+        .sum()
+}
+
+fn inner_neighbors(layer: &Vec<Bug>, position: usize) -> i32 {
+    match position {
+        //corners
+        0 => layer[1] as i32 + layer[5] as i32,
+        4 => layer[3] as i32 + layer[9] as i32,
+        20 => layer[15] as i32 + layer[21] as i32,
+        24 => layer[23] as i32 + layer[19] as i32,
+
+        // left edge
+        x if [5, 10, 15].contains(&x) => {
+            layer[x + 1] as i32 + layer[x - 5] as i32 + layer[x + 5] as i32
+        }
+
+        // right edge
+        x if [9, 14, 19].contains(&x) => {
+            layer[x - 1] as i32 + layer[x - 5] as i32 + layer[x + 5] as i32
+        }
+
+        // top edge
+        x if [1, 2, 3].contains(&x) => {
+            layer[x + 1] as i32 + layer[x - 1] as i32 + layer[x + 5] as i32
+        }
+
+        // bottom edge
+        x if [21, 22, 23].contains(&x) => {
+            layer[x + 1] as i32 + layer[x - 5] as i32 + layer[x - 1] as i32
+        }
+
+        x => layer[x + 1] as i32 + layer[x - 5] as i32 + layer[x + 5] as i32 + layer[x - 1] as i32,
+    }
+}
+
+fn tick_layers(inner: &Vec<Bug>, middle: &Vec<Bug>, outer: &Vec<Bug>) -> Vec<Bug> {
+    let mut result = vec![Bug::Dead; 25];
+    for i in 0..25 {
+        if i == 12 {
+            continue;
+        }
+        let mut neighbors = inner_neighbors(middle, i);
+        match i {
+            //corners
+            0 => {
+                neighbors += outer[7] as i32;
+                neighbors += outer[11] as i32
+            }
+            4 => {
+                neighbors += outer[7] as i32;
+                neighbors += outer[13] as i32
+            }
+            20 => {
+                neighbors += outer[11] as i32;
+                neighbors += outer[17] as i32
+            }
+            24 => {
+                neighbors += outer[13] as i32;
+                neighbors += outer[17] as i32
+            }
+
+            // left edge
+            x if [5, 10, 15].contains(&x) => neighbors += outer[11] as i32,
+
+            // right edge
+            x if [9, 14, 19].contains(&x) => neighbors += outer[13] as i32,
+
+            // top edge
+            x if [1, 2, 3].contains(&x) => neighbors += outer[7] as i32,
+
+            // bottom edge
+            x if [21, 22, 23].contains(&x) => neighbors += outer[17] as i32,
+            // middle
+            7 => {
+                for j in &[0, 1, 2, 3, 4] {
+                    neighbors += inner[*j as usize] as i32;
+                }
+            }
+            11 => {
+                for j in &[0, 5, 10, 15, 20] {
+                    neighbors += inner[*j as usize] as i32;
+                }
+            }
+            13 => {
+                for j in &[4, 9, 14, 19, 24] {
+                    neighbors += inner[*j as usize] as i32;
+                }
+            }
+            17 => {
+                for j in &[20, 21, 22, 23, 24] {
+                    neighbors += inner[*j as usize] as i32;
+                }
+            }
+            _ => (),
+        }
+
+        if middle[i] == Bug::Alive {
+            if neighbors == 1 {
+                result[i] = Bug::Alive;
+            }
+        } else {
+            if neighbors == 1 || neighbors == 2 {
+                result[i] = Bug::Alive;
+            }
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
